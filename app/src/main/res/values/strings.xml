@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">tutorial6</string>
+    <string name="devices">Bluetooth Devices</string>
+
+    <string-array name="activity_options">
+        <item>Walking</item>
+        <item>Running</item>
+    </string-array>
+</resources>
