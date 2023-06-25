@@ -2,8 +2,9 @@ package com.example.tutorial6;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.os.Bundle;
-
+import java.io.FileWriter;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -11,6 +12,8 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -26,16 +29,28 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.opencsv.CSVWriter;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Date;
+import java.util.Calendar;
+import java.text.SimpleDateFormat;
+
+
 
 public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     private Context context;
     private MapView mapView;
+    private Button buttonStart;
+    private Button buttonStop;
     private GoogleMap googleMap;
+    private Date startTime;
     private HelloItemizedOverlay itemizedOverlay;
     private List<LatLng> pathPoints = new ArrayList<>();
     private static final float MIN_DISTANCE_THRESHOLD = 10; // Minimum distance threshold in meters
@@ -45,9 +60,11 @@ public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCall
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.mains);
-
+        File file = new File("/sdcard/csv_dir/");
+        file.mkdirs();
         context = getApplicationContext();
-
+        buttonStart = findViewById(R.id.buttonStart);
+        buttonStop = findViewById(R.id.buttonStop);
         mapView = findViewById(R.id.mapView);
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
@@ -58,8 +75,22 @@ public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCall
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                     LOCATION_PERMISSION_REQUEST_CODE);
         } else {
-            startLocationUpdates();
+            buttonStart.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    Calendar calendar = Calendar.getInstance();
+                    startTime = calendar.getTime();
+                    startLocationUpdates();
+                }
+            });
         }
+
+        buttonStop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startLocationUpdates();
+            }
+        });
     }
 
     @Override
@@ -104,7 +135,22 @@ public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCall
                 pathPoints.add(newPoint);
             }
         }
+        try{
+            String latitudeString = String.valueOf(newPoint.latitude);
+            String longitudeString = String.valueOf(newPoint.longitude);
+            String userName = "mitzi";
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+            String startTimeString = formatter.format(startTime);
+            String csv = "/sdcard/csv_dir/" + userName + "" + startTimeString + ".csv";
+            CSVWriter csvWriter = new CSVWriter(new FileWriter(csv,true));
+            String row[]= new String[]{latitudeString, longitudeString};
+            csvWriter.writeNext(row);
+            csvWriter.close();
 
+        } catch (
+        IOException e) {
+            e.printStackTrace();
+        }
         itemizedOverlay.clear();
         for (LatLng point : pathPoints) {
             itemizedOverlay.addOverlay(point);
