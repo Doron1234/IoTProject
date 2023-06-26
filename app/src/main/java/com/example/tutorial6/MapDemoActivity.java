@@ -29,8 +29,6 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
 import com.opencsv.CSVWriter;
 
 import java.io.File;
@@ -55,7 +53,6 @@ public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCall
     private Date startTime;
     private HelloItemizedOverlay itemizedOverlay;
     private List<LatLng> pathPoints = new ArrayList<>();
-    private DatabaseReference mDatabase;
     private static final float MIN_DISTANCE_THRESHOLD = 10; // Minimum distance threshold in meters
 
 
@@ -81,8 +78,6 @@ public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCall
             buttonStart.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    buttonStop.setEnabled(true);
-                    buttonStart.setEnabled(false);
                     Calendar calendar = Calendar.getInstance();
                     startTime = calendar.getTime();
                     startLocationUpdates();
@@ -93,9 +88,7 @@ public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCall
         buttonStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                buttonStop.setEnabled(false);
-                buttonStart.setEnabled(true);
-                mDatabase.child("coordinates").setValue(pathPoints);
+                startLocationUpdates();
             }
         });
     }
@@ -112,7 +105,6 @@ public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCall
     }
 
     private void startLocationUpdates() {
-        mDatabase = FirebaseDatabase.getInstance().getReference();
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         LocationListener locationListener = new MyLocationListener(context);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -143,9 +135,7 @@ public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCall
                 pathPoints.add(newPoint);
             }
         }
-        /*try{
-
-
+        try{
             String latitudeString = String.valueOf(newPoint.latitude);
             String longitudeString = String.valueOf(newPoint.longitude);
             String userName = "mitzi";
@@ -157,9 +147,10 @@ public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCall
             csvWriter.writeNext(row);
             csvWriter.close();
 
-        } catch (Exception e) {
+        } catch (
+        IOException e) {
             e.printStackTrace();
-        }*/
+        }
         itemizedOverlay.clear();
         for (LatLng point : pathPoints) {
             itemizedOverlay.addOverlay(point);
