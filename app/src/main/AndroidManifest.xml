@@ -18,32 +18,41 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyAnMzKMQjaK1QJLEmyoaHecN3bEZ9XALJ8" />
         <activity
-            android:name=".MapDemoActivity"
+            android:name=".Register"
+            android:theme="@style/Theme.Design.Light.NoActionBar"
             android:exported="false" />
         <activity
-            android:name=".LoadCSV"
+            android:name=".Login"
+            android:theme="@style/Theme.Design.Light.NoActionBar"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:windowSoftInputMode="stateHidden|adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyAnMzKMQjaK1QJLEmyoaHecN3bEZ9XALJ8" />
+
+        <activity
+            android:name=".MapDemoActivity"
+            android:exported="false" />
+        <activity
+            android:name=".LoadCSV"
+            android:exported="true">
+
+        </activity>
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:windowSoftInputMode="stateHidden|adjustResize" />
+
 
         <service android:name=".SerialService" />
     </application>
