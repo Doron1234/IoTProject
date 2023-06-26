@@ -2,6 +2,7 @@ package com.example.tutorial6;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import java.io.FileWriter;
@@ -56,6 +57,7 @@ public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCall
     private static final float MIN_DISTANCE_THRESHOLD = 10; // Minimum distance threshold in meters
 
 
+    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
