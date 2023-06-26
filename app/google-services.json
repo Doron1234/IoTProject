@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "326958333533",
+    "firebase_url": "https://mitzi-f7b4e-default-rtdb.firebaseio.com",
+    "project_id": "mitzi-f7b4e",
+    "storage_bucket": "mitzi-f7b4e.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:326958333533:android:9061a08b0ea7c1bb1897b4",
+        "android_client_info": {
+          "package_name": "com.example.tutorial6"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "326958333533-m1dsqt7itj2a20s62vedlevblqso5nv8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2WHBXZDDUQBp12WNZqEy-ctAPCTj9lTs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "326958333533-m1dsqt7itj2a20s62vedlevblqso5nv8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
