@@ -44,7 +44,6 @@ import java.util.Calendar;
 import java.text.SimpleDateFormat;
 
 
-
 public class MapDemoActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
