@@ -19,6 +19,7 @@ import android.os.IBinder;
 import android.text.Editable;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
+import android.text.format.DateFormat;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
 import android.view.LayoutInflater;
@@ -52,6 +53,7 @@ import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.opencsv.CSVWriter;
@@ -114,6 +116,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private DatabaseReference mDatabase;
     LocationManager locationManager;
     LocationListener locationListener;
+    FirebaseAuth auth;
+    FirebaseUser user;
+    private String startTimeString;
 
 
     String selectedInSpinner = "Walking";
@@ -132,7 +137,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         setHasOptionsMenu(true);
         setRetainInstance(true);
         deviceAddress = getArguments().getString("device");
-
+        auth = FirebaseAuth.getInstance();
+        user = auth.getCurrentUser();
     }
 
     @Override
@@ -244,10 +250,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             buttonStart.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    start_flag = true;
+                    startTimebegin = System.currentTimeMillis();
                     buttonStop.setEnabled(true);
                     buttonStart.setEnabled(false);
                     Calendar calendar = Calendar.getInstance();
                     startTime = calendar.getTime();
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+                    startTimeString = dateFormat.format(startTime);
                     startLocationUpdates();
                 }
             });
@@ -256,10 +266,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         buttonStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
+                start_flag = false;
                 buttonStop.setEnabled(false);
                 buttonStart.setEnabled(true);
-                mDatabase.child("coordinates").setValue(pathPoints);
+                mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString).setValue(pathPoints);
                 stopLocationUpdates();
             }
         });
@@ -291,8 +301,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             return true;
         }
         else if (id == R.id.menu_new_drive) {
-            Intent intent = new Intent(getActivity(), MapDemoActivity.class);
-            startActivity(intent);
+
             return true;
             // Handle settings option click
         }
@@ -382,11 +391,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
 
     private void receive(byte[] message) {
+
         if(hexEnabled) {
             receiveText.append(TextUtil.toHexString(message) + '\n');
         } else {
             String msg = new String(message);
-            if(true && msg.length() > 0) {
+            if(msg.length() > 0) {
                 // don't show CR as ^M if directly before LF
                 String msg_to_save = msg;
                 msg_to_save = msg.replace(TextUtil.newline_crlf, TextUtil.emptyString);
@@ -409,14 +419,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         float y = Float.parseFloat(parts[1]);
                         float x = Float.parseFloat(parts[2]);
 
-
-
                         before = current;
                         current = after;
                         after = (float)Math.sqrt(x * x + y * y + z * z);
                         // parse string values, in this case [0] is tmp & [1] is count (t)
-                        String row[]= new String[]{parts[0],parts[1], parts[2], String.valueOf((float)timePassed/1000)};
-
+                        ArrayList<String> row= new ArrayList<String>();
+                        row.add(parts[0]);
+                        row.add(parts[1]);
+                        row.add(parts[2]);
+                        row.add(String.valueOf((float)timePassed/1000));
 
                    }
                 try{
