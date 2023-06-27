@@ -217,6 +217,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
+
     @Override
     public void onServiceDisconnected(ComponentName name) {
         service = null;
@@ -278,6 +279,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
 
+
+
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.themenu, menu);
@@ -301,7 +304,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             return true;
         }
         else if (id == R.id.menu_new_drive) {
-
+            googleMap.clear();
             return true;
             // Handle settings option click
         }
