@@ -36,6 +36,15 @@
             android:layout_height="wrap_content"
             android:text="Stop Driving"
             android:enabled="false" />
+        <TextView
+            android:id="@+id/receive_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:freezesText="true"
+            android:gravity="bottom"
+            android:scrollbars="vertical"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
     </LinearLayout>
 

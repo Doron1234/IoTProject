@@ -1,5 +1,6 @@
 package com.example.tutorial6;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
@@ -8,7 +9,11 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.Editable;
@@ -32,19 +37,30 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapView;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.opencsv.CSVWriter;
 
 import java.io.BufferedReader;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 
 import com.chaquo.python.PyObject;
@@ -66,8 +82,11 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
-public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
+public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener, OnMapReadyCallback {
+
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     private enum Connected { False, Pending, True }
 
@@ -75,29 +94,29 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private SerialService service;
 
     private TextView receiveText;
-    private TextView sendText;
-    private TextUtil.HexWatcher hexWatcher;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
     private boolean hexEnabled = false;
-    private boolean pendingNewline = false;
-    private String newline = TextUtil.newline_crlf;
 
-    LineChart mpLineChart;
-    LineDataSet lineDataSetN;
-    ArrayList<ILineDataSet> dataSets = new ArrayList<>();
-    LineData data;
-
-    private String fileName;
     private boolean start_flag = false;
-    private long startTime;
+    private long startTimebegin;
     private boolean save_flag = false;
-    private TextView fileOpenText;
-    Button newGuy;
+    private MapView mapView;
+    private Button buttonStart;
+    private Button buttonStop;
+    private Context context;
+    private GoogleMap googleMap;
+    private Date startTime;
+    private HelloItemizedOverlay itemizedOverlay;
+    private List<LatLng> pathPoints = new ArrayList<>();
+    private static final float MIN_DISTANCE_THRESHOLD = 10; // Minimum distance threshold in meters
+    private DatabaseReference mDatabase;
+    LocationManager locationManager;
+    LocationListener locationListener;
+
 
     String selectedInSpinner = "Walking";
-    TextView textViewEstimated;
 
     int sum = 0;
     float before = 0, current = 0, after = 0;
@@ -122,6 +141,19 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             disconnect();
         getActivity().stopService(new Intent(getActivity(), SerialService.class));
         super.onDestroy();
+
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        mapView.onDestroy();
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        mapView.onSaveInstanceState(outState);
     }
 
     @Override
@@ -154,8 +186,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     @Override
+    public void onPause() {
+        super.onPause();
+        mapView.onPause();
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
+        mapView.onResume();
         if(initialStart && service != null) {
             initialStart = false;
             getActivity().runOnUiThread(this::connect);
@@ -178,186 +217,50 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
 
-    private void updateLine(String toUpdate, String updated) throws IOException {
-        File f = new File("/sdcard/csv_dir/" + fileName + ".csv");
-        BufferedReader file = new BufferedReader(new FileReader(f));
-        String line;
-        String input = "";
-
-        while ((line = file.readLine()) != null)
-            input += line + System.lineSeparator();
-
-        input = input.replace(toUpdate, updated);
-
-        FileOutputStream os = new FileOutputStream(f);
-        os.write(input.getBytes());
-
-        file.close();
-        os.close();
-    }
-
     /*
      * UI
      */
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_terminal, container, false);
-        receiveText = view.findViewById(R.id.receive_text);                          // TextView performance decreases with number of spans
+        View view = inflater.inflate(R.layout.mains, container, false);        receiveText = view.findViewById(R.id.receive_text);                          // TextView performance decreases with number of spans
         receiveText.setTextColor(getResources().getColor(R.color.colorRecieveText)); // set as default color to reduce number of spans
         receiveText.setMovementMethod(ScrollingMovementMethod.getInstance());
-        newGuy = view.findViewById(R.id.button);
-        sendText = view.findViewById(R.id.send_text);
-        hexWatcher = new TextUtil.HexWatcher(sendText);
-        hexWatcher.enable(hexEnabled);
-        sendText.addTextChangedListener(hexWatcher);
-        sendText.setHint(hexEnabled ? "HEX mode" : "");
-
-        View sendBtn = view.findViewById(R.id.send_btn);
-        sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
-
-        mpLineChart = (LineChart) view.findViewById(R.id.line_chart);
-        lineDataSetN =  new LineDataSet(emptyDataValues(), "N");
-        lineDataSetN.setColor(Color.BLUE);
-        lineDataSetN.setCircleColor(Color.BLUE);
-        dataSets.add(lineDataSetN);
-        data = new LineData(dataSets);
-        mpLineChart.setData(data);
-        mpLineChart.invalidate();
-
-        Button buttonCsvShow = (Button) view.findViewById(R.id.button2);
-
-        Button buttonStart = (Button) view.findViewById(R.id.start_button);
-        Button buttonStop = (Button) view.findViewById(R.id.stop_button);
-        Button buttonReset = (Button) view.findViewById(R.id.reset_button);
-        Button buttonSave = (Button) view.findViewById(R.id.save_button);
-        Spinner activity_spinner = (Spinner) view.findViewById(R.id.spinner_choose_activity);
-        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(getActivity(), R.array.activity_options, android.R.layout.simple_spinner_item);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        activity_spinner.setAdapter(adapter);
-        TextView editTextSteps = (TextView) view.findViewById(R.id.editTextSteps);
-        TextView editTextFileName = (TextView) view.findViewById(R.id.editTextFileName);
-        textViewEstimated = (TextView) view.findViewById(R.id.textViewEstimated);
-
-        activity_spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-                selectedInSpinner = adapterView.getItemAtPosition(i).toString();
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> adapterView) {
-                // No item is selected
-            }
-        });
-
-        newGuy.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(getContext(),MapDemoActivity.class);
-                //intent.putExtra("fileOpenText", fileOpenText.getText().toString());
-                startActivity(intent);
-            }
-        });
 
 
-        buttonStart.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                try {
+        File file = new File("/sdcard/csv_dir/");
+        file.mkdirs();
+        context = getContext();
+        buttonStart = view.findViewById(R.id.buttonStart);
+        buttonStop = view.findViewById(R.id.buttonStop);
+        mapView = view.findViewById(R.id.mapView);
+        mapView.onCreate(savedInstanceState);
+        mapView.getMapAsync(this);
 
-                    sum = 0;
-                    // getting number of steps and file name
-                    int steps = Integer.parseInt(editTextSteps.getText().toString());
-                    fileName = editTextFileName.getText().toString();
-
-                    // create new csv unless file already exists
-                    File file = new File("/sdcard/csv_dir/");
-                    file.mkdirs();
-                    String csv = "/sdcard/csv_dir/" + fileName + ".csv";
-                    CSVWriter csvWriter = new CSVWriter(new FileWriter(csv,true));
-
-                    // parse string values, in this case [0] is tmp & [1] is count (t)
-                    SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-                    Date date = new Date();
-
-                    String row0[]= new String[]{fileName, "NAME:"};
-                    String row1[] = new String[]{formatter.format(date), "EXPERIMENT TIME:"};
-                    String row2[] = new String[]{selectedInSpinner, "ACTIVITY TYPE:"};
-                    String row3[] = new String[]{String.valueOf(steps), "COUNT OF ACTUAL STEPS"};
-                    String row4[] = new String[]{"Two roads diverge in a yellow wood"};
-                    String row5[] = new String[]{"ACC Z", "ACC Y", "ACC X", "Time [sec]"};
-
-                    csvWriter.writeNext(row0);
-                    csvWriter.writeNext(row1);
-                    csvWriter.writeNext(row2);
-                    csvWriter.writeNext(row3);
-                    csvWriter.writeNext(row4);
-                    csvWriter.writeNext(row5);
-
-                    startTime = System.currentTimeMillis();
-                    start_flag = true;
-
-
-
-                    csvWriter.close();
-
-
-
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }}
-        });
-
-        buttonCsvShow.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                OpenLoadCSV();
-
-            }
-        });
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    LOCATION_PERMISSION_REQUEST_CODE);
+        } else {
+            buttonStart.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    buttonStop.setEnabled(true);
+                    buttonStart.setEnabled(false);
+                    Calendar calendar = Calendar.getInstance();
+                    startTime = calendar.getTime();
+                    startLocationUpdates();
+                }
+            });
+        }
 
         buttonStop.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                start_flag = false;
-                String s = "Two roads diverge in a yellow wood";
-                try {
-                    updateLine(s,  "Estimated number of steps\",\"" + textViewEstimated.getText());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+            @Override
+            public void onClick(View view) {
 
-
-        buttonSave.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                Toast.makeText(getContext(),"Clear",Toast.LENGTH_SHORT).show();
-                mpLineChart.clearValues();
-                mpLineChart = (LineChart) view.findViewById(R.id.line_chart);
-                lineDataSetN =  new LineDataSet(emptyDataValues(), "N");
-                lineDataSetN.setColor(Color.BLUE);
-                lineDataSetN.setCircleColor(Color.BLUE);
-                dataSets.add(lineDataSetN);
-                data = new LineData(dataSets);
-                mpLineChart.setData(data);
-                mpLineChart.invalidate();
-            }
-        });
-
-        buttonReset.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                File f = new File("/sdcard/csv_dir/" + fileName + ".csv");
-                f.delete();
-                Toast.makeText(getContext(),"Clear",Toast.LENGTH_SHORT).show();
-                mpLineChart.clearValues();
-                mpLineChart = (LineChart) view.findViewById(R.id.line_chart);
-                lineDataSetN =  new LineDataSet(emptyDataValues(), "N");
-                lineDataSetN.setColor(Color.BLUE);
-                lineDataSetN.setCircleColor(Color.BLUE);
-                dataSets.add(lineDataSetN);
-                data = new LineData(dataSets);
-                mpLineChart.setData(data);
-                mpLineChart.invalidate();
+                buttonStop.setEnabled(false);
+                buttonStart.setEnabled(true);
+                mDatabase.child("coordinates").setValue(pathPoints);
+                stopLocationUpdates();
             }
         });
 
@@ -377,7 +280,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
         if (id == R.id.menu_logout) {
             FirebaseAuth.getInstance().signOut();
-            Intent intent = new Intent(getActivity(), Login.class);
+            Intent intent = new Intent(getContext(), Login.class);
             startActivity(intent);
             // Handle settings option click
             return true;
@@ -421,44 +324,69 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
+
+    private void startLocationUpdates() {
+        mDatabase = FirebaseDatabase.getInstance().getReference();
+        locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        locationListener = new TerminalFragment.MyLocationListener(context);
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, locationListener);
+    }
+
+    private void stopLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        locationManager.removeUpdates(locationListener);
+    }
+
+    void addPoint(double lat, double lng) {
+        LatLng newPoint = new LatLng(lat, lng);
+
+        if (pathPoints.isEmpty()) {
+            pathPoints.add(newPoint);
+        } else {
+            LatLng lastPoint = pathPoints.get(pathPoints.size() - 1);
+            float[] distance = new float[1];
+            Location.distanceBetween(lastPoint.latitude, lastPoint.longitude, lat, lng, distance);
+            float distanceInMeters = distance[0];
+
+            if (distanceInMeters >= MIN_DISTANCE_THRESHOLD) {
+                pathPoints.add(newPoint);
+            }
+        }
+        itemizedOverlay.clear();
+        for (LatLng point : pathPoints) {
+            itemizedOverlay.addOverlay(point);
+        }
+
+        googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(newPoint, 15.0f));
+    }
+
+    @Override
+    public void onMapReady(GoogleMap map) {
+        googleMap = map;
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        googleMap.setMyLocationEnabled(true);
+        itemizedOverlay = new HelloItemizedOverlay(googleMap);
+    }
+
     private void disconnect() {
         connected = Connected.False;
         service.disconnect();
     }
 
-    private void send(String str) {
-        if(connected != Connected.True) {
-            Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        try {
-            String msg;
-            byte[] data;
-            if(hexEnabled) {
-                StringBuilder sb = new StringBuilder();
-                TextUtil.toHexString(sb, TextUtil.fromHexString(str));
-                TextUtil.toHexString(sb, newline.getBytes());
-                msg = sb.toString();
-                data = TextUtil.fromHexString(msg);
-            } else {
-                msg = str;
-                data = (str + newline).getBytes();
-            }
-            SpannableStringBuilder spn = new SpannableStringBuilder(msg + '\n');
-            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            receiveText.append(spn);
-            service.write(data);
-        } catch (Exception e) {
-            onSerialIoError(e);
-        }
-    }
 
     private void receive(byte[] message) {
         if(hexEnabled) {
             receiveText.append(TextUtil.toHexString(message) + '\n');
         } else {
             String msg = new String(message);
-            if(newline.equals(TextUtil.newline_crlf) && msg.length() > 0) {
+            if(true && msg.length() > 0) {
                 // don't show CR as ^M if directly before LF
                 String msg_to_save = msg;
                 msg_to_save = msg.replace(TextUtil.newline_crlf, TextUtil.emptyString);
@@ -470,25 +398,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     parts = clean_str(parts);
 
                     // saving data to csv
-                    try {
 
                         // create new csv unless file already exists
-                        File file = new File("/sdcard/csv_dir/");
-                        file.mkdirs();
-                        String csv = "/sdcard/csv_dir/" + fileName + ".csv";
-                        CSVWriter csvWriter = new CSVWriter(new FileWriter(csv,true));
 
 
 
                         // add received values to line dataset for plotting the linechart
-                        long timePassed = System.currentTimeMillis() - startTime;
+                        long timePassed = System.currentTimeMillis() - startTimebegin;
                         float z = Float.parseFloat(parts[0]);
                         float y = Float.parseFloat(parts[1]);
                         float x = Float.parseFloat(parts[2]);
-                        data.addEntry(new Entry(((float)timePassed)/1000,(float)Math.sqrt(x * x + y * y + z * z)),0);
-                        lineDataSetN.notifyDataSetChanged(); // let the data know a dataSet changed
-                        mpLineChart.notifyDataSetChanged(); // let the chart know it's data changed
-                        mpLineChart.invalidate(); // refresh
+
 
 
                         before = current;
@@ -496,12 +416,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         after = (float)Math.sqrt(x * x + y * y + z * z);
                         // parse string values, in this case [0] is tmp & [1] is count (t)
                         String row[]= new String[]{parts[0],parts[1], parts[2], String.valueOf((float)timePassed/1000)};
-                        csvWriter.writeNext(row);
-                        csvWriter.close();
 
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }}
+
+                   }
                 try{
                 if(!Python.isStarted()) {
                     Python.start(new AndroidPlatform(getContext()));
@@ -514,10 +431,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
                 PyObject obj = pyobj.callAttr("m", before, current, after);
                 sum += obj.toInt();
-                textViewEstimated.setText(String.valueOf(sum));
-
-
-
 
             } catch (Exception e) {
                 System.out.println(e);
@@ -527,14 +440,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             msg = msg.replace(TextUtil.newline_crlf, TextUtil.newline_lf);
             // send msg to function that saves it to csv
             // special handling if CR and LF come in separate fragments
-            if (pendingNewline && msg.charAt(0) == '\n') {
+            if (true && msg.charAt(0) == '\n') {
                 Editable edt = receiveText.getEditableText();
                 if (edt != null && edt.length() > 1)
                     edt.replace(edt.length() - 2, edt.length(), "");
             }
-            pendingNewline = msg.charAt(msg.length() - 1) == '\r';
         }
-        receiveText.append(TextUtil.toCaretString(msg, newline.length() != 0));
     }
 }
 
@@ -586,6 +497,34 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         Intent intent = new Intent(getContext(),LoadCSV.class);
         //intent.putExtra("fileOpenText", fileOpenText.getText().toString());
         startActivity(intent);
+    }
+    public class MyLocationListener implements LocationListener {
+        private Context context;
+
+        MyLocationListener(Context context) {
+            this.context = context;
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+            Toast.makeText(context, "Gps Disabled", Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+            Toast.makeText(context, "Gps Enabled", Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+        }
+
+        @Override
+        public void onLocationChanged(Location location) {
+            double lat = location.getLatitude();
+            double lng = location.getLongitude();
+            addPoint(lat, lng);
+        }
     }
 
 }
