@@ -121,6 +121,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private String startTimeString;
 
 
+
+
+
     String selectedInSpinner = "Walking";
 
     int sum = 0;
@@ -299,6 +302,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             return true;
         }
         else if (id == R.id.menu_history) {
+            Intent intent = new Intent(getContext(), History.class);
+            startActivity(intent);
 
             // Handle settings option click
             return true;
