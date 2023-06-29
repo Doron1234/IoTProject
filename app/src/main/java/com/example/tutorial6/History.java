@@ -13,6 +13,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -82,6 +83,9 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
 
                             googleMap.addPolyline(polylineOptions);
                         }
+                        float zoomLevel = 17.0f; //This goes up to 21
+                        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(points.get(0), zoomLevel)); // replace zoomLevel with the desired zoom level
+
                     }
 
                     @Override
