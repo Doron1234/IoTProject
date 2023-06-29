@@ -62,7 +62,7 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 googleMap.clear();
                 String selectedItem = parent.getItemAtPosition(position).toString();
-                DatabaseReference selectedTableRef = mDatabase.child(selectedItem);
+                DatabaseReference selectedTableRef = mDatabase.child(user.getEmail().replace(".", "%") + selectedItem);
 
                 selectedTableRef.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
@@ -110,7 +110,7 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
                     for (DataSnapshot tableSnapshot : dataSnapshot.getChildren()) {
                         String tableName = tableSnapshot.getKey();
                         if (tableName.startsWith(userEmail.replace(".", "%"))) {
-                            spinnerItems.add(tableName);
+                            spinnerItems.add(tableName.replace(userEmail.replace(".", "%"), ""));
                         }
                     }
 
