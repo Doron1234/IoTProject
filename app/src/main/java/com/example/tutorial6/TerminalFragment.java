@@ -53,7 +53,10 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -87,6 +90,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener, OnMapReadyCallback {
@@ -110,6 +114,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private MapView mapView;
     private Button buttonStart;
     private Button buttonStop;
+    private Button buttonStatistics;
+    private ArrayList<Float> accelerationXList;
+    private ArrayList<Float> accelerationYList;
+    private ArrayList<Float> accelerationZList;
+    private ArrayList<Float> times;
     private Context context;
     private GoogleMap googleMap;
     private Date startTime;
@@ -122,9 +131,19 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     FirebaseAuth auth;
     FirebaseUser user;
     private String startTimeString;
-    private Location currentLocation;
-
-
+    private LatLng currentLocation;
+    private final float MULTIPLY =  2.23693629f;
+    private float accelerationIndex;
+    private float brakingIndex;
+    private boolean accFlag = false;
+    private boolean brakeFlag = false;
+    private HashMap<LatLng, Marker> markerHashMap = new HashMap<>();
+    private int maxAcceleration = 0;
+    private int maxBrake = 0;
+    private LatLng maxAccPoint;
+    private LatLng maxBrakePoint;
+    int level = 0;
+    private List<Pair<LatLng, Integer>> markers;
 
 
 
@@ -241,12 +260,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.setTextColor(getResources().getColor(R.color.colorRecieveText)); // set as default color to reduce number of spans
         receiveText.setMovementMethod(ScrollingMovementMethod.getInstance());
 
-
         File file = new File("/sdcard/csv_dir/");
         file.mkdirs();
         context = getContext();
         buttonStart = view.findViewById(R.id.buttonStart);
         buttonStop = view.findViewById(R.id.buttonStop);
+        buttonStatistics = view.findViewById(R.id.buttonStatistics);
+
         mapView = view.findViewById(R.id.mapView);
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
@@ -259,15 +279,24 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             buttonStart.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    markers = new ArrayList<>();
+                    accelerationIndex = 0;
+                    brakingIndex = 0;
                     start_flag = true;
                     startTimebegin = System.currentTimeMillis();
                     buttonStop.setEnabled(true);
                     buttonStart.setEnabled(false);
+                    buttonStatistics.setEnabled(false);
                     Calendar calendar = Calendar.getInstance();
                     startTime = calendar.getTime();
                     SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
                     startTimeString = dateFormat.format(startTime);
                     startLocationUpdates();
+                    accelerationXList = new ArrayList<>();
+                    accelerationYList = new ArrayList<>();
+                    accelerationZList = new ArrayList<>();
+                    times = new ArrayList<>();
+                    googleMap.clear();
                 }
             });
         }
@@ -278,8 +307,20 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 start_flag = false;
                 buttonStop.setEnabled(false);
                 buttonStart.setEnabled(true);
+                buttonStatistics.setEnabled(true);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString).setValue(pathPoints);
+                mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "markers").setValue(markers);
                 stopLocationUpdates();
+                pathPoints.clear();
+                markers.clear();
+
+            }
+        });
+        buttonStatistics.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(getContext(), DrivingData.class);
+                startActivity(intent);
             }
         });
 
@@ -463,7 +504,111 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         float z = Float.parseFloat(parts[0]);
                         float y = Float.parseFloat(parts[1]);
                         float x = Float.parseFloat(parts[2]);
+                        accelerationXList.add(x);
+                        accelerationYList.add(y);
+                        accelerationZList.add(z);
+                        float t = ((float) timePassed) / 1000;
+                        times.add(t);
+                        if (accelerationXList.size() > 20){
+                            accelerationXList.remove(0);
+                            accelerationYList.remove(0);
+                            accelerationZList.remove(0);
+                            times.remove(0);
+                        }
+                        float integral_sum = 0;
+                        for(int i = 0; i < 20; i++){
+                            if (accelerationXList.get(i) < 0) {
+                                integral_sum -= (accelerationXList.get(i) * accelerationXList.get(i) + accelerationYList.get(i) * accelerationYList.get(i) + accelerationZList.get(i) * accelerationZList.get(i)) * 0.05;
+                            }
+                            else{
+                                integral_sum += (accelerationXList.get(i) * accelerationXList.get(i) + accelerationYList.get(i) * accelerationYList.get(i) + accelerationZList.get(i) * accelerationZList.get(i)) * 0.05;
 
+                            }
+                        }
+                        integral_sum = integral_sum * MULTIPLY;
+                        if (integral_sum >= 8){
+                            maxAcceleration = 5;
+                            accFlag = true;
+                        }
+                        else if (integral_sum >= 7){
+                            if (maxAcceleration < 4) {
+                                maxAcceleration = 4;
+                                accFlag = true;
+                            }
+                        }
+                        else if (integral_sum >= 6){
+                            if (maxAcceleration < 3) {
+                                maxAcceleration = 3;
+                                accFlag = true;
+                            }
+                        }
+                        else if (integral_sum >= 5){
+                            if (maxAcceleration < 2) {
+                                maxAcceleration = 2;
+                                accFlag = true;
+                            }
+                        }
+                        else if (integral_sum >= 4){
+                            if (maxAcceleration < 1) {
+                                maxAcceleration = 1;
+                                accFlag = true;
+                            }
+                        }
+                        else if(accFlag == true){
+                            accelerationIndex += maxAcceleration;
+                            maxAcceleration = 0;
+                            accFlag = false;
+
+                        }
+                        if (integral_sum <= -13){
+                            if (maxBrake < 5) {
+                                maxBrake = 5;
+                                brakeFlag = true;
+                                maxBrakePoint = new LatLng(currentLocation.latitude, currentLocation.longitude);
+                                level  = 5;
+
+                            }
+                        }
+                        else if (integral_sum <= -11){
+                            if (maxBrake < 4) {
+                                maxBrake = 4;
+                                brakeFlag = true;
+                                maxBrakePoint = new LatLng(currentLocation.latitude, currentLocation.longitude);
+                                level  = 4;
+                            }
+                        }
+                        else if (integral_sum <= -9){
+                            if (maxBrake < 3) {
+                                maxBrake = 3;
+                                brakeFlag = true;
+                                maxBrakePoint = new LatLng(currentLocation.latitude, currentLocation.longitude);
+                                level  = 3;
+
+                            }
+                        }
+                        else if (integral_sum <= -7){
+                            if (maxBrake < 2) {
+                                maxBrake = 2;
+                                brakeFlag = true;
+                            }
+                        }
+                        else if (integral_sum <= -5){
+                            if (maxBrake < 1) {
+                                maxBrake = 1;
+                                brakeFlag = true;
+                            }
+                        }
+                        else if (brakeFlag == true){
+                            brakingIndex += maxBrake;
+                            maxBrake = 0;
+                            brakeFlag = false;
+                            addMarkerIfNotExist(maxBrakePoint, level);
+                            if (maxBrakePoint != null) {
+                                Pair<LatLng, Integer> pair = new Pair<LatLng, Integer>(maxBrakePoint, level);
+                                markers.add(pair);
+                            }
+                            level = 0;
+                        }
                         before = current;
                         current = after;
                         after = (float)Math.sqrt(x * x + y * y + z * z);
@@ -504,6 +649,39 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 }
+    private void addMarkerIfNotExist(LatLng point, int level) {
+        if (level == 3){
+            addYellowMarker(point);
+        }
+        else if (level == 4){
+            addOrangeMarker(point);
+        }
+        else if (level == 5){
+            addRedMarker(point);
+        }
+
+    }
+    private void addOrangeMarker(LatLng point) {
+        MarkerOptions markerOptions = new MarkerOptions()
+                .position(point)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
+
+        googleMap.addMarker(markerOptions);
+    }
+    private void addRedMarker(LatLng point) {
+        MarkerOptions markerOptions = new MarkerOptions()
+                .position(point)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
+
+        googleMap.addMarker(markerOptions);
+    }
+    private void addYellowMarker(LatLng point) {
+        MarkerOptions markerOptions = new MarkerOptions()
+                .position(point)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
+
+        googleMap.addMarker(markerOptions);
+    }
 
     private void status(String str) {
         SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
@@ -579,6 +757,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         public void onLocationChanged(Location location) {
             double lat = location.getLatitude();
             double lng = location.getLongitude();
+            currentLocation = new LatLng (lat, lng);
             addPoint(lat, lng);
         }
     }

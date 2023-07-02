@@ -1,0 +1,87 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".DrivingData">
+
+    <TextView
+        android:id="@+id/titleTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Driving Statistics"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/distanceTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Total Distance: "
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/durationTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Duration: "
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/averageSpeedTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Average Speed: "
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/maxSpeedTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Max Speed: "
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/accelerationTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Max Acceleration: "
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/decelerationTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Max Deceleration: "
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/easySuddenBreaksTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Number of easy sudden breaks: "
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/mediumSuddenBreaksTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Number of medium sudden breaks: "
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/hardSuddenBreaksTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Number of hard sudden breaks: "
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/scoreTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Score: "
+        android:textStyle="bold" />
+
+</LinearLayout>

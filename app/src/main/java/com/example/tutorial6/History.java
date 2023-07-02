@@ -17,7 +17,9 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -25,6 +27,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.GenericTypeIndicator;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
@@ -38,6 +41,8 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
     private MapView mapView;
     private GoogleMap googleMap;
     Spinner spinner;
+    private String TAG = "lol";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +98,38 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
                         // Handle database error if needed
                     }
                 });
+                DatabaseReference selectedTableRef2 = mDatabase.child(user.getEmail().replace(".", "%") + selectedItem + "markers");
+                selectedTableRef2.addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                            DataSnapshot latLngSnapshot = snapshot.child("key");
+                            Double lat = latLngSnapshot.child("latitude").getValue(Double.class);
+                            Double lng = latLngSnapshot.child("longitude").getValue(Double.class);
+
+                            if (lat == null || lng == null) {
+                                Log.e(TAG, "Null LatLng at: " + snapshot.getKey());
+                                continue;
+                            }
+
+                            LatLng latLng = new LatLng(lat, lng);
+                            Integer colorCode = snapshot.child("value").getValue(Integer.class);
+
+                            if (colorCode == null) {
+                                Log.e(TAG, "Null color code at: " + snapshot.getKey());
+                                continue;
+                            }
+
+                            Pair<LatLng, Integer> pair = new Pair<>(latLng, colorCode);
+                            addMarker(pair);
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
+                        Log.w(TAG, "loadPost:onCancelled", databaseError.toException());
+                    }
+                });
             }
 
             @Override
@@ -109,7 +146,7 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
                     spinnerItems.clear();
                     for (DataSnapshot tableSnapshot : dataSnapshot.getChildren()) {
                         String tableName = tableSnapshot.getKey();
-                        if (tableName.startsWith(userEmail.replace(".", "%"))) {
+                        if (tableName.startsWith(userEmail.replace(".", "%")) && !(tableName.endsWith("markers"))) {
                             spinnerItems.add(tableName.replace(userEmail.replace(".", "%"), ""));
                         }
                     }
@@ -132,6 +169,29 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
     public void onMapReady(GoogleMap map) {
         googleMap = map;
 
+    }
+
+    private void addMarker(Pair<LatLng, Integer> pair) {
+        if (googleMap != null && pair.getFirst() != null) {
+            float color;
+            switch (pair.getSecond()) {
+                case 3:
+                    color = BitmapDescriptorFactory.HUE_YELLOW;
+                    break;
+                case 4:
+                    color = BitmapDescriptorFactory.HUE_ORANGE;
+                    break;
+                case 5:
+                    color = BitmapDescriptorFactory.HUE_RED;
+                    break;
+                default:
+                    color = BitmapDescriptorFactory.HUE_BLUE; // or any other default color
+            }
+
+            googleMap.addMarker(new MarkerOptions()
+                    .position(pair.getFirst())
+                    .icon(BitmapDescriptorFactory.defaultMarker(color)));
+        }
     }
 
 

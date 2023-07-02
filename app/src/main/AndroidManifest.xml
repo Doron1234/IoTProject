@@ -20,6 +20,9 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
+            android:name=".DrivingData"
+            android:exported="false" />
+        <activity
             android:name=".History"
             android:exported="false" />
         <activity
@@ -46,7 +49,7 @@
             android:exported="false" />
         <activity
             android:name=".LoadCSV"
-            android:exported="true"></activity>
+            android:exported="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

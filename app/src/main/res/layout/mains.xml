@@ -36,6 +36,13 @@
             android:layout_height="wrap_content"
             android:text="Stop Driving"
             android:enabled="false" />
+        <Button
+            android:id="@+id/buttonStatistics"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Statistics"
+            android:enabled="false" />
+
         <TextView
             android:id="@+id/receive_text"
             android:layout_width="match_parent"
