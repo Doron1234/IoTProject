@@ -146,7 +146,7 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
                     spinnerItems.clear();
                     for (DataSnapshot tableSnapshot : dataSnapshot.getChildren()) {
                         String tableName = tableSnapshot.getKey();
-                        if (tableName.startsWith(userEmail.replace(".", "%")) && !(tableName.endsWith("markers"))) {
+                        if (tableName.startsWith(userEmail.replace(".", "%")) && !(tableName.endsWith("markers")) && !(tableName.endsWith("totalDistance")) && !(tableName.endsWith("avgSpeed")) && !(tableName.endsWith("maxSpeed")) && !(tableName.endsWith("maxAcc")) && !(tableName.endsWith("maxDec")) && !(tableName.endsWith("driveScore"))) {
                             spinnerItems.add(tableName.replace(userEmail.replace(".", "%"), ""));
                         }
                     }
@@ -209,18 +209,14 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
         switch (id) {
             case R.id.menu_logout:
                 FirebaseAuth.getInstance().signOut();
-                Intent intent = new Intent(History.this, Login.class);
-                startActivity(intent);
+                Intent intent_logout = new Intent(History.this, Login.class);
+                startActivity(intent_logout);
                 return true;
-            case R.id.menu_new_drive:
-                TerminalFragment fragment = new TerminalFragment();
-                getSupportFragmentManager()
-                        .beginTransaction()
-                        .replace(R.id.fragment, fragment)
-                        .commit();
+            case R.id.menu_home:
+                Intent intent_home = new Intent(getApplicationContext(), MainActivity.class);
+                startActivity(intent_home);
                 return true;
             case R.id.menu_history:
-                // Perform action for menu item "History"
                 return true;
         }
 

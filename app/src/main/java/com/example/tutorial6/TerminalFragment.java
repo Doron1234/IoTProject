@@ -22,6 +22,7 @@ import android.text.SpannableStringBuilder;
 import android.text.format.DateFormat;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -144,7 +145,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private LatLng maxBrakePoint;
     int level = 0;
     private List<Pair<LatLng, Integer>> markers;
-
+    private double totalDistance;
 
 
 
@@ -313,9 +314,40 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 stopLocationUpdates();
                 pathPoints.clear();
                 markers.clear();
+                float totalTime = times.get(times.size() - 1);
+                int driveScore = (int) (100 - (accelerationIndex + brakingIndex) / (2 * totalTime));
+                mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "driveScore").setValue(driveScore);
+                // Implement the DistanceCalculationListener interface
+                DistanceCalculator.DistanceCalculationListener distanceCalculationListener = new DistanceCalculator.DistanceCalculationListener() {
+                    @Override
+                    public void onDistanceCalculated(double distance) {
+                        // Distance calculation successful
+                        totalDistance = distance;
+                        Log.d("Distance", "Total distance: " + distance + " meters");
+                    }
 
+                    @Override
+                    public void onDistanceCalculationFailed(String errorMessage) {
+                        // Distance calculation failed
+                        Log.e("Distance", "Distance calculation failed: " + errorMessage);
+                    }
+                };
+
+                // Call the calculateTotalDistance method with the ArrayList of LatLng and the listener
+                DistanceCalculator.calculateTotalDistance((ArrayList<LatLng>) pathPoints, distanceCalculationListener);
+                mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "totalDistance").setValue(totalDistance);
+                float avgSpeed = calculateAverageSpeed(totalTime);
+                mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "avgSpeed").setValue(avgSpeed);
+                float maxSpeed = calculateMaxSpeed(accelerationXList, accelerationYList, accelerationZList, times);
+                mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "maxSpeed").setValue(maxSpeed);
+                float maxAcc = calculateMaxAcceleration(accelerationXList, accelerationYList, accelerationZList);
+                mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "maxAcc").setValue(maxAcc);
+                float maxDec = calculateMaxAcceleration(accelerationXList, accelerationYList, accelerationZList);
+                mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "maxDec").setValue(maxDec);
             }
+
         });
+
         buttonStatistics.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -326,9 +358,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
         return view;
     }
-
-
-
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
@@ -354,8 +383,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             // Handle settings option click
             return true;
         }
-        else if (id == R.id.menu_new_drive) {
-            googleMap.clear();
+        else if (id == R.id.home) {
+            Intent intent_home = new Intent(getContext(), MainActivity.class);
+            startActivity(intent_home);
             return true;
             // Handle settings option click
         }
@@ -467,7 +497,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     }
                 });
     }
-
 
 
     private void disconnect() {
@@ -649,6 +678,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 }
+
     private void addMarkerIfNotExist(LatLng point, int level) {
         if (level == 3){
             addYellowMarker(point);
@@ -732,6 +762,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         //intent.putExtra("fileOpenText", fileOpenText.getText().toString());
         startActivity(intent);
     }
+
     public class MyLocationListener implements LocationListener {
         private Context context;
 
@@ -762,4 +793,86 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
+    private float calculateAverageSpeed(float duration){
+        return (float) (totalDistance / duration);
+    }
+
+    private float calculateMaxSpeed(ArrayList<Float> accelerationXList, ArrayList<Float> accelerationYList, ArrayList<Float> accelerationZList, ArrayList<Float> times){
+        // Calculate the velocity based on the acceleration data
+        float initialSpeed = 0.0f;
+        float currentSpeed = initialSpeed;
+        float maxSpeed = initialSpeed;
+        float timeStep;
+
+        for (int i = 0; i < accelerationXList.size(); i++) {
+            float accelerationX = accelerationXList.get(i);
+            float accelerationY = accelerationYList.get(i);
+            float accelerationZ = accelerationZList.get(i);
+            if(i == 0){
+                timeStep = times.get(i);
+            }
+            else{
+                timeStep = times.get(i) - times.get(i - 1); // Time step between acceleration samples (in seconds)
+            }
+
+            // Calculate the total acceleration magnitude
+            float accelerationMagnitude = (float) Math.sqrt(
+                    accelerationX * accelerationX +
+                            accelerationY * accelerationY +
+                            accelerationZ * accelerationZ
+            );
+
+            // Calculate the change in velocity using the acceleration
+            float deltaVelocity = accelerationMagnitude * timeStep;
+            if (accelerationX < 0){
+                deltaVelocity *= -1;
+            }
+            // Update the current speed
+            currentSpeed += deltaVelocity;
+
+            // Check if the current speed is higher than the maximum speed
+            if (currentSpeed > maxSpeed) {
+                maxSpeed = currentSpeed;
+            }
+        }
+        return maxSpeed;
+    }
+
+    private float calculateMaxAcceleration(ArrayList<Float> accelerationXList, ArrayList<Float> accelerationYList, ArrayList<Float> accelerationZList){
+        float maxAcceleration = 0.0f;
+
+        for (int i = 0; i < accelerationXList.size(); i++) {
+            float accelerationX = accelerationXList.get(i);
+            float accelerationY = accelerationYList.get(i);
+            float accelerationZ = accelerationZList.get(i);
+
+            // Calculate the magnitude of the acceleration vector
+            float accelerationMagnitude = (float) Math.sqrt(accelerationX * accelerationX + accelerationY * accelerationY + accelerationZ * accelerationZ);
+
+            // Update the maximum acceleration if the current magnitude is higher
+            if (accelerationMagnitude > maxAcceleration) {
+                maxAcceleration = accelerationMagnitude;
+            }
+        }
+        return maxAcceleration;
+    }
+
+    private float calculateMaxDeceleration(ArrayList<Float> accelerationXList, ArrayList<Float> accelerationYList, ArrayList<Float> accelerationZList){
+        float maxDeceleration = 0.0f; // in m/s^2
+
+        for (int i = 0; i < accelerationXList.size(); i++) {
+            float accelerationX = accelerationXList.get(i);
+            float accelerationY = accelerationYList.get(i);
+            float accelerationZ = accelerationZList.get(i);
+
+            // Calculate the magnitude of the acceleration vector
+            float accelerationMagnitude = (float) Math.sqrt(accelerationX * accelerationX + accelerationY * accelerationY + accelerationZ * accelerationZ);
+
+            // Update the maximum acceleration if the current magnitude is higher
+            if (accelerationMagnitude > maxDeceleration && accelerationX < 0) {
+                maxDeceleration = accelerationMagnitude;
+            }
+        }
+        return maxDeceleration;
+    }
 }

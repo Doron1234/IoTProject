@@ -12,7 +12,7 @@
     app:showAsAction="never" />
 
 <item
-    android:id="@+id/menu_new_drive"
-    android:title="New Drive"
+    android:id="@+id/menu_home"
+    android:title="Drive"
     app:showAsAction="never"/>
 </menu>

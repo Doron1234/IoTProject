@@ -240,5 +240,6 @@ public class DrivingData extends AppCompatActivity {
 
     private float calculateDrivingScore(ArrayList<Float> accelerationXList, ArrayList<Float> accelerationYList, ArrayList<Float> accelerationZList, ArrayList<Float> times){
         float score = 0.0f;
-        return score; }
+        return score;
+    }
 }
