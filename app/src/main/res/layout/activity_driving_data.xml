@@ -1,116 +1,133 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
     android:background="#F1F1F1">
 
-    <TextView
-        android:id="@+id/titleTextView"
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Driving Statistics"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:paddingBottom="16dp"
-        android:textColor="#333333" />
+        android:layout_height="?attr/actionBarSize"
+        android:background= "#440154"
+        android:elevation="4dp"
+        android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
+        />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#FFFFFF"
+        android:layout_below="@+id/toolbar"
         android:padding="16dp"
         android:layout_marginBottom="16dp">
 
         <TextView
-            android:id="@+id/distanceTextView"
+            android:id="@+id/titleTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Total Distance:"
+            android:text="Driving Statistics"
+            android:textSize="24sp"
             android:textStyle="bold"
+            android:paddingBottom="16dp"
             android:textColor="#333333" />
 
-        <TextView
-            android:id="@+id/durationTextView"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Duration:"
-            android:textStyle="bold"
-            android:textColor="#333333" />
+            android:orientation="vertical"
+            android:background="#FFFFFF"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
 
-        <TextView
-            android:id="@+id/averageSpeedTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Average Speed:"
-            android:textStyle="bold"
-            android:textColor="#333333" />
+            <TextView
+                android:id="@+id/distanceTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Total Distance:"
+                android:textStyle="bold"
+                android:textColor="#333333" />
 
-        <TextView
-            android:id="@+id/maxSpeedTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Max Speed:"
-            android:textStyle="bold"
-            android:textColor="#333333" />
+            <TextView
+                android:id="@+id/durationTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Duration:"
+                android:textStyle="bold"
+                android:textColor="#333333" />
 
-        <TextView
-            android:id="@+id/accelerationTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Max Acceleration:"
-            android:textStyle="bold"
-            android:textColor="#333333" />
+            <TextView
+                android:id="@+id/averageSpeedTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Average Speed:"
+                android:textStyle="bold"
+                android:textColor="#333333" />
 
-        <TextView
-            android:id="@+id/decelerationTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Max Deceleration:"
-            android:textStyle="bold"
-            android:textColor="#333333" />
+            <TextView
+                android:id="@+id/maxSpeedTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Max Speed:"
+                android:textStyle="bold"
+                android:textColor="#333333" />
 
-        <TextView
-            android:id="@+id/easySuddenBreaksTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Number of easy sudden breaks:"
-            android:textStyle="bold"
-            android:textColor="#333333" />
+            <TextView
+                android:id="@+id/accelerationTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Max Acceleration:"
+                android:textStyle="bold"
+                android:textColor="#333333" />
 
-        <TextView
-            android:id="@+id/mediumSuddenBreaksTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Number of medium sudden breaks:"
-            android:textStyle="bold"
-            android:textColor="#333333" />
+            <TextView
+                android:id="@+id/decelerationTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Max Deceleration:"
+                android:textStyle="bold"
+                android:textColor="#333333" />
 
-        <TextView
-            android:id="@+id/hardSuddenBreaksTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Number of hard sudden breaks:"
-            android:textStyle="bold"
-            android:textColor="#333333" />
+            <TextView
+                android:id="@+id/easySuddenBreaksTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Number of easy sudden breaks:"
+                android:textStyle="bold"
+                android:textColor="#333333" />
 
-        <TextView
-            android:id="@+id/scoreTextView"
-            android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/mediumSuddenBreaksTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Number of medium sudden breaks:"
+                android:textStyle="bold"
+                android:textColor="#333333" />
+
+            <TextView
+                android:id="@+id/hardSuddenBreaksTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Number of hard sudden breaks:"
+                android:textStyle="bold"
+                android:textColor="#333333" />
+
+            <TextView
+                android:id="@+id/scoreTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Score:"
+                android:textStyle="bold"
+                android:textColor="#333333" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Score:"
-            android:textStyle="bold"
-            android:textColor="#333333" />
+            android:src="@drawable/speedy_mcqueen"
+            android:layout_gravity="center_horizontal|bottom"
+            android:paddingTop="100dp" />
 
     </LinearLayout>
 
-    <ImageView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/speedy_mcqueen"
-        android:layout_gravity="center_horizontal|bottom"
-        android:paddingTop="100dp" />
-
-</LinearLayout>
+</RelativeLayout>

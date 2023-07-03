@@ -5,8 +5,11 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import androidx.appcompat.widget.Toolbar;
 
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -50,6 +53,8 @@ public class DrivingData extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_driving_data);
 
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
         // Retrieve references to TextView elements
         TextView distanceTextView = findViewById(R.id.distanceTextView);
         TextView averageSpeedTextView = findViewById(R.id.averageSpeedTextView);
@@ -234,6 +239,36 @@ public class DrivingData extends AppCompatActivity {
             }
         });
     }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.themenu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        switch (id) {
+            case R.id.menu_logout:
+                FirebaseAuth.getInstance().signOut();
+                Intent intent_logout = new Intent(DrivingData.this, Login.class);
+                startActivity(intent_logout);
+                return true;
+            case R.id.menu_home:
+                Intent intent_home = new Intent(getApplicationContext(), MainActivity.class);
+                startActivity(intent_home);
+                return true;
+            case R.id.menu_history:
+                Intent intent_history = new Intent(getApplicationContext(), History.class);
+                startActivity(intent_history);
+                return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
 
 
     private ArrayList<String[]> CsvRead(String path){
