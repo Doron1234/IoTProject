@@ -20,6 +20,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -38,6 +39,9 @@ public class DrivingData extends AppCompatActivity {
     private Button buttonCalculate, buttonImportCSV;
     private double totalDistance;
     private final float MULTIPLY =  2.23693629f;
+    private int smallBrakes = 0;
+    private int mediumBrakes = 0;
+    private int largeBrakes = 0;
     FirebaseAuth auth;
     FirebaseUser user;
 
@@ -68,12 +72,61 @@ public class DrivingData extends AppCompatActivity {
         DatabaseReference maxDecRef = mDatabase.child(firebasePlace + "maxDec");
         DatabaseReference driveScoreRef = mDatabase.child(firebasePlace + "driveScore");
         DatabaseReference totalTimeRef = mDatabase.child(firebasePlace + "totalTime");
+        DatabaseReference markersRef = mDatabase.child(firebasePlace + "markers");
+        markersRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    DataSnapshot latLngSnapshot = snapshot.child("first");
+                    Double lat = latLngSnapshot.child("latitude").getValue(Double.class);
+                    Double lng = latLngSnapshot.child("longitude").getValue(Double.class);
+
+                    if (lat == null || lng == null) {
+                        continue;
+                    }
+
+                    LatLng latLng = new LatLng(lat, lng);
+                    Integer colorCode = snapshot.child("second").getValue(Integer.class);
+
+                    if (colorCode == null) {
+                        continue;
+                    }
+
+                    switch (colorCode) {
+                        case 1:
+                            smallBrakes++;
+                            break;
+                        case 2:
+                            smallBrakes++;
+                            break;
+                        case 3:
+                            mediumBrakes++;
+                            break;
+                        case 4:
+                            mediumBrakes++;
+                            break;
+                        case 5:
+                            largeBrakes++;
+                            break;
+                        default:
+                            break;// or any other default color
+                    }
+                }
+                easySuddenBreaksTextView.setText("Number of easy sudden breaks: " + String.valueOf(smallBrakes));
+                mediumSuddenBreaksTextView.setText("Number of medium sudden breaks: " + String.valueOf(mediumBrakes));
+                hardSuddenBreaksTextView.setText("Number of hard sudden breaks: " + String.valueOf(largeBrakes));
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+            }
+        });
         totalTimeRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 // Get the value from the dataSnapshot
                 float value = dataSnapshot.getValue(Float.class);
-                durationTextView.setText(String.valueOf(value));
+                durationTextView.setText("Duration of Drive: " + String.valueOf(value));
 
                 // Use the value as needed
                 // ...
@@ -89,7 +142,7 @@ public class DrivingData extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 // Get the value from the dataSnapshot
                 float value = dataSnapshot.getValue(Float.class);
-                scoreTextView.setText(String.valueOf(value));
+                scoreTextView.setText("Drive Score: " + String.valueOf(value));
 
                 // Use the value as needed
                 // ...
@@ -105,7 +158,7 @@ public class DrivingData extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 // Get the value from the dataSnapshot
                 float value = dataSnapshot.getValue(Float.class);
-                distanceTextView.setText(String.valueOf(value));
+                distanceTextView.setText("Distance Traveled: " + String.valueOf(value));
 
                 // Use the value as needed
                 // ...
@@ -121,7 +174,7 @@ public class DrivingData extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 // Get the value from the dataSnapshot
                 float value = dataSnapshot.getValue(Float.class);
-                averageSpeedTextView.setText(String.valueOf(value));
+                averageSpeedTextView.setText("Average Speed: " + String.valueOf(value));
 
                 // Use the value as needed
                 // ...
@@ -137,7 +190,7 @@ public class DrivingData extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 // Get the value from the dataSnapshot
                 float value = dataSnapshot.getValue(Float.class);
-                maxSpeedTextView.setText(String.valueOf(value));
+                maxSpeedTextView.setText("Maximum Speed: " + String.valueOf(value));
 
                 // Use the value as needed
                 // ...
@@ -153,7 +206,7 @@ public class DrivingData extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 // Get the value from the dataSnapshot
                 float value = dataSnapshot.getValue(Float.class);
-                accelerationTextView.setText(String.valueOf(value));
+                accelerationTextView.setText("Maximum Acceleration: " + String.valueOf(value));
 
                 // Use the value as needed
                 // ...
@@ -169,7 +222,7 @@ public class DrivingData extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 // Get the value from the dataSnapshot
                 float value = dataSnapshot.getValue(Float.class);
-                decelerationTextView.setText(String.valueOf(value));
+                decelerationTextView.setText("Maximum Deceleration: " + String.valueOf(value));
 
                 // Use the value as needed
                 // ...

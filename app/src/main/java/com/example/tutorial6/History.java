@@ -31,7 +31,11 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.GenericTypeIndicator;
 import com.google.firebase.database.ValueEventListener;
 
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class History extends AppCompatActivity implements OnMapReadyCallback {
@@ -45,6 +49,7 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
     private String TAG = "lol";
     private Button buttonStatistics;
     private String selectedItem;
+    String stringForFirebase;
 
 
     @Override
@@ -72,7 +77,23 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 googleMap.clear();
                 selectedItem = parent.getItemAtPosition(position).toString();
-                DatabaseReference selectedTableRef = mDatabase.child(user.getEmail().replace(".", "%") + selectedItem);
+                DateFormat inputFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+
+                // Specify the desired output time format
+                DateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+
+                try {
+                    // Parse the input time string into a Date object
+                    Date date = outputFormat.parse(selectedItem);
+
+                    // Format the date object into the desired output format
+                    stringForFirebase = inputFormat.format(date);
+
+                } catch (ParseException e) {
+                    System.out.println("Error parsing the input time: " + e.getMessage());
+                }
+
+                DatabaseReference selectedTableRef = mDatabase.child(user.getEmail().replace(".", "%") + stringForFirebase);
 
                 selectedTableRef.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
@@ -103,12 +124,12 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
                         // Handle database error if needed
                     }
                 });
-                DatabaseReference selectedTableRef2 = mDatabase.child(user.getEmail().replace(".", "%") + selectedItem + "markers");
+                DatabaseReference selectedTableRef2 = mDatabase.child(user.getEmail().replace(".", "%") + stringForFirebase + "markers");
                 selectedTableRef2.addValueEventListener(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                            DataSnapshot latLngSnapshot = snapshot.child("key");
+                            DataSnapshot latLngSnapshot = snapshot.child("first");
                             Double lat = latLngSnapshot.child("latitude").getValue(Double.class);
                             Double lng = latLngSnapshot.child("longitude").getValue(Double.class);
 
@@ -118,7 +139,7 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
                             }
 
                             LatLng latLng = new LatLng(lat, lng);
-                            Integer colorCode = snapshot.child("value").getValue(Integer.class);
+                            Integer colorCode = snapshot.child("second").getValue(Integer.class);
 
                             if (colorCode == null) {
                                 Log.e(TAG, "Null color code at: " + snapshot.getKey());
@@ -147,7 +168,7 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
             @Override
             public void onClick(View view) {
                 Intent intent = new Intent(getApplicationContext(), DrivingData.class);
-                intent.putExtra("yourKey", user.getEmail().replace(".", "%").toString() + selectedItem);
+                intent.putExtra("yourKey", user.getEmail().replace(".", "%").toString() + stringForFirebase);
                 startActivity(intent);
             }
         });
@@ -161,8 +182,25 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
                     spinnerItems.clear();
                     for (DataSnapshot tableSnapshot : dataSnapshot.getChildren()) {
                         String tableName = tableSnapshot.getKey();
-                        if (tableName.startsWith(userEmail.replace(".", "%")) && !(tableName.endsWith("markers")) && !(tableName.endsWith("totalDistance")) && !(tableName.endsWith("avgSpeed")) && !(tableName.endsWith("maxSpeed")) && !(tableName.endsWith("maxAcc")) && !(tableName.endsWith("maxDec")) && !(tableName.endsWith("driveScore"))) {
-                            spinnerItems.add(tableName.replace(userEmail.replace(".", "%"), ""));
+                        if (tableName.startsWith(userEmail.replace(".", "%")) && !(tableName.endsWith("markers")) && !(tableName.endsWith("totalDistance")) && !(tableName.endsWith("avgSpeed")) && !(tableName.endsWith("maxSpeed")) && !(tableName.endsWith("maxAcc")) && !(tableName.endsWith("maxDec")) && !(tableName.endsWith("driveScore"))  && !(tableName.endsWith("totalTime"))) {
+                            DateFormat inputFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+
+                            // Specify the desired output time format
+                            DateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+                            String dateString = tableName.replace(userEmail.replace(".", "%"), "");
+
+                            try {
+                                // Parse the input time string into a Date object
+                                Date date = inputFormat.parse(dateString);
+
+                                // Format the date object into the desired output format
+                                String outputTime = outputFormat.format(date);
+                                spinnerItems.add(outputTime);
+
+                            } catch (ParseException e) {
+                                System.out.println("Error parsing the input time: " + e.getMessage());
+                            }
+
                         }
                     }
 
@@ -190,8 +228,14 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
         if (googleMap != null && pair.getFirst() != null) {
             float color;
             switch (pair.getSecond()) {
-                case 3:
+                case 1:
                     color = BitmapDescriptorFactory.HUE_YELLOW;
+                    break;
+                case 2:
+                    color = BitmapDescriptorFactory.HUE_YELLOW;
+                    break;
+                case 3:
+                    color = BitmapDescriptorFactory.HUE_ORANGE;
                     break;
                 case 4:
                     color = BitmapDescriptorFactory.HUE_ORANGE;

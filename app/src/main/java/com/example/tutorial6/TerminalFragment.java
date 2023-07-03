@@ -119,6 +119,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private Button buttonStop;
     private Button buttonStatistics;
     private ArrayList<Float> accelerationXList;
+    private ArrayList<Float> accelerationXListFull;
     private ArrayList<Float> accelerationYList;
     private ArrayList<Float> accelerationZList;
     private ArrayList<Float> times;
@@ -307,9 +308,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     Calendar calendar = Calendar.getInstance();
                     startTime = calendar.getTime();
                     SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+                    SimpleDateFormat dateFormat2 = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
                     startTimeString = dateFormat.format(startTime);
                     startLocationUpdates();
                     accelerationXList = new ArrayList<>();
+                    accelerationXListFull = new ArrayList<>();
                     accelerationYList = new ArrayList<>();
                     accelerationZList = new ArrayList<>();
                     times = new ArrayList<>();
@@ -331,7 +334,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 markers.clear();
                 float totalTime = times.get(times.size() - 1);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "totalTime").setValue(totalTime);
-                int driveScore = (int) (100 - (accelerationIndex + brakingIndex) / (2 * totalTime));
+                int driveScore = Math.max(0, (int) (100 - (accelerationIndex + brakingIndex) / (2 * (totalTime/3600))));
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "driveScore").setValue(driveScore);
                 // Implement the DistanceCalculationListener interface
 
@@ -342,12 +345,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "avgSpeed").setValue(avgSpeed);
                 float maxSpeed = calculateMaxSpeed(pathPoints, pointTimes);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "maxSpeed").setValue(maxSpeed);
-                float maxAcc = calculateMaxAcceleration(accelerationXList, accelerationYList, accelerationZList);
+                float maxAcc = calculateMaxAcceleration(accelerationXListFull);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "maxAcc").setValue(maxAcc);
-                float maxDec = calculateMaxDeceleration(accelerationXList, accelerationYList, accelerationZList);
+                float maxDec = calculateMaxDeceleration(accelerationXListFull);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "maxDec").setValue(maxDec);
                 pathPoints.clear();
                 pointTimes.clear();
+                accelerationXList.clear();
+                accelerationXListFull.clear();
+                accelerationYList.clear();
+                accelerationZList.clear();
+                times.clear();
             }
         });
 
@@ -510,7 +518,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
             // calculating speed = distance / time
             // converting m/s to km/h by multiplying with 3.6
-            float speed = (distance / timeDiff) * 3.6f; // speed in km/h
+            float speed = (distance / timeDiff); // speed in km/h
 
             if (speed > maxSpeed) {
                 maxSpeed = speed;
@@ -597,6 +605,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         float y = Float.parseFloat(parts[1]);
                         float x = Float.parseFloat(parts[2]);
                         accelerationXList.add(x);
+                        accelerationXListFull.add(x);
                         accelerationYList.add(y);
                         accelerationZList.add(z);
                         float t = ((float) timePassed) / 1000;
@@ -609,13 +618,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         }
                         float integral_sum = 0;
                         for(int i = 0; i < 20; i++){
-                            if (accelerationXList.get(i) < 0) {
-                                integral_sum -= (accelerationXList.get(i) * accelerationXList.get(i) + accelerationYList.get(i) * accelerationYList.get(i) + accelerationZList.get(i) * accelerationZList.get(i)) * 0.05;
-                            }
-                            else{
-                                integral_sum += (accelerationXList.get(i) * accelerationXList.get(i) + accelerationYList.get(i) * accelerationYList.get(i) + accelerationZList.get(i) * accelerationZList.get(i)) * 0.05;
-
-                            }
+                            integral_sum += accelerationXList.get(i)*0.05;
                         }
                         integral_sum = integral_sum * MULTIPLY;
                         if (integral_sum >= 8){
@@ -743,10 +746,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 }
 
     private void addMarkerIfNotExist(LatLng point, int level) {
-        if (level == 3){
+        if ((level == 1) || (level == 2)){
             addYellowMarker(point);
         }
-        else if (level == 4){
+        else if ((level == 3) || (level == 4)){
             addOrangeMarker(point);
         }
         else if (level == 5){
@@ -857,45 +860,45 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private float calculateAverageSpeed(float duration){
-        return (float) (totalDistance / duration);
+        return (float) (totalDistance / duration)*3.6f;
     }
 
 
-    private float calculateMaxAcceleration(ArrayList<Float> accelerationXList, ArrayList<Float> accelerationYList, ArrayList<Float> accelerationZList){
-        float maxAcceleration = 0.0f;
+    private float calculateMaxAcceleration(ArrayList<Float> accelerationXList){
+        float curMaxAcceleration = 0.0f;
 
         for (int i = 0; i < accelerationXList.size(); i++) {
             float accelerationX = accelerationXList.get(i);
-            float accelerationY = accelerationYList.get(i);
-            float accelerationZ = accelerationZList.get(i);
+            //float accelerationY = accelerationYList.get(i);
+            //float accelerationZ = accelerationZList.get(i);
 
             // Calculate the magnitude of the acceleration vector
-            float accelerationMagnitude = (float) Math.sqrt(accelerationX * accelerationX + accelerationY * accelerationY + accelerationZ * accelerationZ);
+            //float accelerationMagnitude = (float) Math.sqrt(accelerationX * accelerationX + accelerationY * accelerationY + accelerationZ * accelerationZ);
 
             // Update the maximum acceleration if the current magnitude is higher
-            if (accelerationMagnitude > maxAcceleration) {
-                maxAcceleration = accelerationMagnitude;
+            if (accelerationX > curMaxAcceleration) {
+                curMaxAcceleration = accelerationX;
             }
         }
-        return maxAcceleration;
+        return curMaxAcceleration;
     }
 
-    private float calculateMaxDeceleration(ArrayList<Float> accelerationXList, ArrayList<Float> accelerationYList, ArrayList<Float> accelerationZList){
-        float maxDeceleration = 0.0f; // in m/s^2
+    private float calculateMaxDeceleration(ArrayList<Float> accelerationXList){
+        float curMaxDeceleration = 0.0f; // in m/s^2
 
         for (int i = 0; i < accelerationXList.size(); i++) {
             float accelerationX = accelerationXList.get(i);
-            float accelerationY = accelerationYList.get(i);
-            float accelerationZ = accelerationZList.get(i);
+            //float accelerationY = accelerationYList.get(i);
+            //float accelerationZ = accelerationZList.get(i);
 
             // Calculate the magnitude of the acceleration vector
-            float accelerationMagnitude = (float) Math.sqrt(accelerationX * accelerationX + accelerationY * accelerationY + accelerationZ * accelerationZ);
+            //float accelerationMagnitude = (float) Math.sqrt(accelerationX * accelerationX + accelerationY * accelerationY + accelerationZ * accelerationZ);
 
             // Update the maximum acceleration if the current magnitude is higher
-            if (accelerationMagnitude > maxDeceleration && accelerationX < 0) {
-                maxDeceleration = accelerationMagnitude;
+            if (accelerationX < curMaxDeceleration && accelerationX < 0) {
+                curMaxDeceleration = accelerationX;
             }
         }
-        return maxDeceleration;
+        return -1 * curMaxDeceleration;
     }
 }
