@@ -11,6 +11,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.Spinner;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -42,6 +43,8 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
     private GoogleMap googleMap;
     Spinner spinner;
     private String TAG = "lol";
+    private Button buttonStatistics;
+    private String selectedItem;
 
 
     @Override
@@ -61,12 +64,14 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
         mDatabase = FirebaseDatabase.getInstance().getReference();
         FirebaseAuth auth = FirebaseAuth.getInstance();
         FirebaseUser user = auth.getCurrentUser();
+        buttonStatistics = findViewById(R.id.buttonStatistics);
+
 
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 googleMap.clear();
-                String selectedItem = parent.getItemAtPosition(position).toString();
+                selectedItem = parent.getItemAtPosition(position).toString();
                 DatabaseReference selectedTableRef = mDatabase.child(user.getEmail().replace(".", "%") + selectedItem);
 
                 selectedTableRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -137,6 +142,16 @@ public class History extends AppCompatActivity implements OnMapReadyCallback {
                 // Handle the case when nothing is selected
             }
         });
+
+        buttonStatistics.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(getApplicationContext(), DrivingData.class);
+                intent.putExtra("yourKey", user.getEmail().replace(".", "%").toString() + selectedItem);
+                startActivity(intent);
+            }
+        });
+
 
         if (user != null) {
             String userEmail = user.getEmail();

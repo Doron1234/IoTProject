@@ -1,5 +1,6 @@
 package com.example.tutorial6;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
@@ -19,6 +20,13 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.opencsv.CSVReader;
 
 import com.google.android.gms.maps.model.LatLng;
@@ -30,6 +38,8 @@ public class DrivingData extends AppCompatActivity {
     private Button buttonCalculate, buttonImportCSV;
     private double totalDistance;
     private final float MULTIPLY =  2.23693629f;
+    FirebaseAuth auth;
+    FirebaseUser user;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,75 +57,129 @@ public class DrivingData extends AppCompatActivity {
         TextView mediumSuddenBreaksTextView = findViewById(R.id.mediumSuddenBreaksTextView);
         TextView hardSuddenBreaksTextView = findViewById(R.id.hardSuddenBreaksTextView);
         TextView scoreTextView = findViewById(R.id.scoreTextView);
-
-        String fileName = getIntent().getStringExtra("csvFileName");
-        ArrayList<String[]> csvData = CsvRead("/sdcard/csv_dir/" + fileName);
-
-        // Process the acceleration data
-        ArrayList<Float> accelerationXList = new ArrayList<>();
-        ArrayList<Float> accelerationYList = new ArrayList<>();
-        ArrayList<Float> accelerationZList = new ArrayList<>();
-        ArrayList<Float> times = new ArrayList<>();
-
-        // Create an ArrayList of LatLng objects representing the driving route
-        // TO DO: Get the ArrayList from Doron and Lion's intent
-        ArrayList<LatLng> drivingRoute = new ArrayList<>();
-        drivingRoute.add(new LatLng(37.7749, -122.4194)); // Latitude and longitude of the starting point
-        drivingRoute.add(new LatLng(37.3352, -122.0096)); // Latitude and longitude of intermediate waypoints
-        drivingRoute.add(new LatLng(34.0522, -118.2437)); // ...
-        drivingRoute.add(new LatLng(32.7157, -117.1611)); // ...
-        drivingRoute.add(new LatLng(34.0522, -118.2437)); // ...
-        drivingRoute.add(new LatLng(37.7749, -122.4194)); // Latitude and longitude of the ending point
-
-        // Implement the DistanceCalculationListener interface
-        DistanceCalculator.DistanceCalculationListener distanceCalculationListener = new DistanceCalculator.DistanceCalculationListener() {
+        DatabaseReference mDatabase = FirebaseDatabase.getInstance().getReference();
+        auth = FirebaseAuth.getInstance();
+        user = auth.getCurrentUser();
+        String firebasePlace = getIntent().getStringExtra("yourKey");
+        DatabaseReference totalDistanceRef = mDatabase.child(firebasePlace + "totalDistance");
+        DatabaseReference avgSpeedRef = mDatabase.child(firebasePlace + "avgSpeed");
+        DatabaseReference maxSpeedRef = mDatabase.child(firebasePlace + "maxSpeed");
+        DatabaseReference maxAccRef = mDatabase.child(firebasePlace + "maxAcc");
+        DatabaseReference maxDecRef = mDatabase.child(firebasePlace + "maxDec");
+        DatabaseReference driveScoreRef = mDatabase.child(firebasePlace + "driveScore");
+        DatabaseReference totalTimeRef = mDatabase.child(firebasePlace + "totalTime");
+        totalTimeRef.addValueEventListener(new ValueEventListener() {
             @Override
-            public void onDistanceCalculated(double distance) {
-                // Distance calculation successful
-                totalDistance = distance;
-                Log.d("Distance", "Total distance: " + distance + " meters");
-            }
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                // Get the value from the dataSnapshot
+                float value = dataSnapshot.getValue(Float.class);
+                durationTextView.setText(String.valueOf(value));
 
+                // Use the value as needed
+                // ...
+            }
             @Override
-            public void onDistanceCalculationFailed(String errorMessage) {
-                // Distance calculation failed
-                Log.e("Distance", "Distance calculation failed: " + errorMessage);
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Handle any errors that occur during the read operation
+                // ...
             }
-        };
+        });
+        driveScoreRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                // Get the value from the dataSnapshot
+                float value = dataSnapshot.getValue(Float.class);
+                scoreTextView.setText(String.valueOf(value));
 
-        // Call the calculateTotalDistance method with the ArrayList of LatLng and the listener
-        DistanceCalculator.calculateTotalDistance(drivingRoute, distanceCalculationListener);
+                // Use the value as needed
+                // ...
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Handle any errors that occur during the read operation
+                // ...
+            }
+        });
+        totalDistanceRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                // Get the value from the dataSnapshot
+                float value = dataSnapshot.getValue(Float.class);
+                distanceTextView.setText(String.valueOf(value));
 
+                // Use the value as needed
+                // ...
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Handle any errors that occur during the read operation
+                // ...
+            }
+        });
+        avgSpeedRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                // Get the value from the dataSnapshot
+                float value = dataSnapshot.getValue(Float.class);
+                averageSpeedTextView.setText(String.valueOf(value));
 
-        for (String[] row : csvData) {
-            // Assuming the acceleration values are in the first two columns (X and Y)
-            float accelerationX = Float.parseFloat(row[0]);
-            float accelerationY = Float.parseFloat(row[1]);
-            float accelerationZ = Float.parseFloat(row[2]);
-            float t = Float.parseFloat(row[3]);
+                // Use the value as needed
+                // ...
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Handle any errors that occur during the read operation
+                // ...
+            }
+        });
+        maxSpeedRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                // Get the value from the dataSnapshot
+                float value = dataSnapshot.getValue(Float.class);
+                maxSpeedTextView.setText(String.valueOf(value));
 
-            accelerationXList.add(accelerationX);
-            accelerationYList.add(accelerationY);
-            accelerationZList.add(accelerationZ);
-            times.add(t);
-        }
+                // Use the value as needed
+                // ...
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Handle any errors that occur during the read operation
+                // ...
+            }
+        });
+        maxAccRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                // Get the value from the dataSnapshot
+                float value = dataSnapshot.getValue(Float.class);
+                accelerationTextView.setText(String.valueOf(value));
 
-        float duration = calculateDuration(times);
-        float averageSpeed = calculateAverageSpeed(duration);
-        float maxSpeed = calculateMaxSpeed(accelerationXList, accelerationYList, accelerationZList, times);
-        float maxAcceleration = calculateMaxAcceleration(accelerationXList, accelerationYList, accelerationZList);
-        float maxDeceleration = calculateMaxDeceleration(accelerationXList, accelerationYList, accelerationZList);
-        float drivingScore = calculateDrivingScore(accelerationXList, accelerationYList, accelerationZList, times);
+                // Use the value as needed
+                // ...
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Handle any errors that occur during the read operation
+                // ...
+            }
+        });
+        maxDecRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                // Get the value from the dataSnapshot
+                float value = dataSnapshot.getValue(Float.class);
+                decelerationTextView.setText(String.valueOf(value));
 
-
-        // Update the text of TextViews with the driving statistics
-        distanceTextView.setText("Total Distance: " + totalDistance + " km");
-        averageSpeedTextView.setText("Average Speed: " + averageSpeed + " km/h");
-        maxSpeedTextView.setText("Max Speed: " + maxSpeed + " km/h");
-        durationTextView.setText("Duration: " + duration + " seconds");
-        accelerationTextView.setText("Max Acceleration: " + maxAcceleration + " m/s^2");
-        decelerationTextView.setText("Max Deceleration: " + maxDeceleration + " m/s^2");
-        scoreTextView.setText("Driving Score: " + drivingScore);
+                // Use the value as needed
+                // ...
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Handle any errors that occur during the read operation
+                // ...
+            }
+        });
     }
 
 

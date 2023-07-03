@@ -35,6 +35,8 @@ import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.location.Location;
+
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -146,6 +148,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     int level = 0;
     private List<Pair<LatLng, Integer>> markers;
     private double totalDistance;
+    private static final int REQUEST_BLUETOOTH_PERMISSION = 1;
+    private List<Float> pointTimes = new ArrayList<>();
 
 
 
@@ -167,6 +171,18 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         deviceAddress = getArguments().getString("device");
         auth = FirebaseAuth.getInstance();
         user = auth.getCurrentUser();
+        if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_CONNECT)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            // Permission is not granted, request it
+            ActivityCompat.requestPermissions(getActivity(),
+                    new String[]{Manifest.permission.BLUETOOTH_CONNECT},
+                    REQUEST_BLUETOOTH_PERMISSION);
+        } else {
+            // Permission is already granted, proceed with Bluetooth functionality
+            // ...
+        }
+
     }
 
     @Override
@@ -312,46 +328,34 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString).setValue(pathPoints);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "markers").setValue(markers);
                 stopLocationUpdates();
-                pathPoints.clear();
                 markers.clear();
                 float totalTime = times.get(times.size() - 1);
+                mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "totalTime").setValue(totalTime);
                 int driveScore = (int) (100 - (accelerationIndex + brakingIndex) / (2 * totalTime));
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "driveScore").setValue(driveScore);
                 // Implement the DistanceCalculationListener interface
-                DistanceCalculator.DistanceCalculationListener distanceCalculationListener = new DistanceCalculator.DistanceCalculationListener() {
-                    @Override
-                    public void onDistanceCalculated(double distance) {
-                        // Distance calculation successful
-                        totalDistance = distance;
-                        Log.d("Distance", "Total distance: " + distance + " meters");
-                    }
-
-                    @Override
-                    public void onDistanceCalculationFailed(String errorMessage) {
-                        // Distance calculation failed
-                        Log.e("Distance", "Distance calculation failed: " + errorMessage);
-                    }
-                };
 
                 // Call the calculateTotalDistance method with the ArrayList of LatLng and the listener
-                DistanceCalculator.calculateTotalDistance((ArrayList<LatLng>) pathPoints, distanceCalculationListener);
+                totalDistance = calculateTotalDistance(pathPoints);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "totalDistance").setValue(totalDistance);
                 float avgSpeed = calculateAverageSpeed(totalTime);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "avgSpeed").setValue(avgSpeed);
-                float maxSpeed = calculateMaxSpeed(accelerationXList, accelerationYList, accelerationZList, times);
+                float maxSpeed = calculateMaxSpeed(pathPoints, pointTimes);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "maxSpeed").setValue(maxSpeed);
                 float maxAcc = calculateMaxAcceleration(accelerationXList, accelerationYList, accelerationZList);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "maxAcc").setValue(maxAcc);
-                float maxDec = calculateMaxAcceleration(accelerationXList, accelerationYList, accelerationZList);
+                float maxDec = calculateMaxDeceleration(accelerationXList, accelerationYList, accelerationZList);
                 mDatabase.child(user.getEmail().replace(".", "%").toString() + startTimeString + "maxDec").setValue(maxDec);
+                pathPoints.clear();
+                pointTimes.clear();
             }
-
         });
 
         buttonStatistics.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Intent intent = new Intent(getContext(), DrivingData.class);
+                intent.putExtra("yourKey", user.getEmail().replace(".", "%").toString() + startTimeString);
                 startActivity(intent);
             }
         });
@@ -448,15 +452,74 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
             if (distanceInMeters >= MIN_DISTANCE_THRESHOLD) {
                 pathPoints.add(newPoint);
+                long timePassed = System.currentTimeMillis() - startTimebegin;
+                float t = ((float) timePassed) / 1000;
+                pointTimes.add(t);
+                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(newPoint, 15.0f));
             }
         }
         itemizedOverlay.clear();
         for (LatLng point : pathPoints) {
             itemizedOverlay.addOverlay(point);
         }
-
-        googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(newPoint, 15.0f));
     }
+
+
+    public float calculateTotalDistance(List<LatLng> points) {
+        float totalDistance = 0;
+
+        for (int i = 0; i < points.size() - 1; i++) {
+            LatLng point1 = points.get(i);
+            LatLng point2 = points.get(i+1);
+
+            float[] results = new float[1];
+            Location.distanceBetween(
+                    point1.latitude, point1.longitude,
+                    point2.latitude, point2.longitude,
+                    results
+            );
+
+            totalDistance += results[0];
+        }
+
+        return totalDistance;
+    }
+
+    public float calculateMaxSpeed(List<LatLng> pathPoints, List<Float> pointTimes) {
+        float maxSpeed = 0;
+
+        if(pathPoints.size() != pointTimes.size()) {
+            return pointTimes.size();
+        }
+        for (int i = 1; i < pathPoints.size(); i++) {
+            LatLng point1 = pathPoints.get(i - 1);
+            LatLng point2 = pathPoints.get(i);
+
+            float time1 = pointTimes.get(i - 1);
+            float time2 = pointTimes.get(i);
+
+            float[] results = new float[1];
+            Location.distanceBetween(
+                    point1.latitude, point1.longitude,
+                    point2.latitude, point2.longitude,
+                    results
+            );
+
+            float distance = results[0]; // in meters
+            float timeDiff = time2 - time1; // time difference in seconds
+
+            // calculating speed = distance / time
+            // converting m/s to km/h by multiplying with 3.6
+            float speed = (distance / timeDiff) * 3.6f; // speed in km/h
+
+            if (speed > maxSpeed) {
+                maxSpeed = speed;
+            }
+        }
+
+        return maxSpeed;
+    }
+
 
     private static final int REQUEST_LOCATION_PERMISSION = 1; // request code for location permission
 
@@ -797,46 +860,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         return (float) (totalDistance / duration);
     }
 
-    private float calculateMaxSpeed(ArrayList<Float> accelerationXList, ArrayList<Float> accelerationYList, ArrayList<Float> accelerationZList, ArrayList<Float> times){
-        // Calculate the velocity based on the acceleration data
-        float initialSpeed = 0.0f;
-        float currentSpeed = initialSpeed;
-        float maxSpeed = initialSpeed;
-        float timeStep;
-
-        for (int i = 0; i < accelerationXList.size(); i++) {
-            float accelerationX = accelerationXList.get(i);
-            float accelerationY = accelerationYList.get(i);
-            float accelerationZ = accelerationZList.get(i);
-            if(i == 0){
-                timeStep = times.get(i);
-            }
-            else{
-                timeStep = times.get(i) - times.get(i - 1); // Time step between acceleration samples (in seconds)
-            }
-
-            // Calculate the total acceleration magnitude
-            float accelerationMagnitude = (float) Math.sqrt(
-                    accelerationX * accelerationX +
-                            accelerationY * accelerationY +
-                            accelerationZ * accelerationZ
-            );
-
-            // Calculate the change in velocity using the acceleration
-            float deltaVelocity = accelerationMagnitude * timeStep;
-            if (accelerationX < 0){
-                deltaVelocity *= -1;
-            }
-            // Update the current speed
-            currentSpeed += deltaVelocity;
-
-            // Check if the current speed is higher than the maximum speed
-            if (currentSpeed > maxSpeed) {
-                maxSpeed = currentSpeed;
-            }
-        }
-        return maxSpeed;
-    }
 
     private float calculateMaxAcceleration(ArrayList<Float> accelerationXList, ArrayList<Float> accelerationYList, ArrayList<Float> accelerationZList){
         float maxAcceleration = 0.0f;
